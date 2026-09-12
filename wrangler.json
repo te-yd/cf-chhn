@@ -10,5 +10,19 @@
 			"binding": "CHAT_HISTORY",
 			"id": "f7a0a8ae58cd44ba8282af2f06f4fb77"
 		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "SESSION_TRACKER",
+				"class_name": "SessionManager"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["SessionManager"]
+		}
 	]
 }

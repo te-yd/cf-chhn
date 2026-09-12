@@ -6,103 +6,557 @@
     <title>Cloudflare AI Assistant</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 flex flex-col h-screen font-sans">
+<body class="bg-gray-900 text-gray-100 flex flex-col h-screen font-sans overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-gray-800 border-b border-gray-700 p-4 shadow-md flex items-center justify-between">
-        <h1 class="text-xl font-bold tracking-wide text-orange-500">⚡ Cloudflare AI App</h1>
-        <span class="text-xs bg-gray-700 px-2.5 py-1 rounded-full text-gray-400">Llama 3.3 + KV Memory</span>
+    <header class="bg-gray-800 border-b border-gray-700 px-4 py-3 shadow-md flex items-center justify-between z-10">
+        <div class="flex items-center gap-3">
+            <button 
+                id="toggle-sidebar-btn" 
+                aria-label="Toggle Sessions Sidebar" 
+                class="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 hover:text-white transition-colors focus:outline-none cursor-pointer"
+                title="Toggle Sidebar"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            <h1 class="text-xl font-bold tracking-wide text-orange-500 flex items-center gap-2">
+                <span>⚡</span> Cloudflare AI App
+            </h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="active-session-badge" class="hidden sm:inline-block text-xs bg-gray-700/70 border border-gray-600 px-2.5 py-1 rounded-full text-gray-300 max-w-[180px] truncate">
+                New Chat
+            </span>
+            <span class="text-xs bg-gray-700 px-2.5 py-1 rounded-full text-gray-400">Llama 3.3 + Durable Object</span>
+        </div>
     </header>
 
-    <!-- Chat Messages Box -->
-    <main id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl w-full mx-auto">
-        <div class="bg-gray-800 p-4 rounded-lg shadow max-w-[80%] border border-gray-700">
-            <p class="text-xs text-orange-400 font-semibold mb-1">System</p>
-            <p class="text-sm">Hello!</p>
-        </div>
-    </main>
+    <!-- Main Workspace (Sidebar + Chat Area) -->
+    <div class="flex-1 flex overflow-hidden relative">
 
-    <!-- Sticky Input Footer -->
-    <footer class="bg-gray-800 border-t border-gray-700 p-4">
-        <form id="chat-form" class="max-w-4xl w-full mx-auto flex gap-3">
-            <input 
-                type="text" 
-                id="user-input" 
-                placeholder="Type your message here..." 
-                class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:outline-none focus:border-orange-500 text-sm"
-                required
-                autocomplete="off"
-            >
-            <button 
-                type="submit" 
-                id="send-btn" 
-                class="bg-orange-600 hover:bg-orange-500 transition-colors text-white font-medium px-6 py-3 rounded-lg text-sm shadow-md"
-            >
-                Send
-            </button>
-        </form>
-    </footer>
+        <!-- Mobile Backdrop Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 z-20 hidden md:hidden transition-opacity"></div>
+
+        <!-- Sessions Sidebar -->
+        <aside 
+            id="sidebar" 
+            class="fixed md:static inset-y-0 left-0 z-30 w-72 bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-200 ease-in-out -translate-x-full md:translate-x-0 h-full shadow-lg md:shadow-none"
+        >
+            <!-- Sidebar Header & New Chat Action -->
+            <div class="p-3 border-b border-gray-700">
+                <button 
+                    id="new-chat-btn" 
+                    class="w-full bg-orange-600 hover:bg-orange-500 text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow transition-colors text-sm cursor-pointer"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    New Chat
+                </button>
+            </div>
+
+            <!-- Sessions List Header -->
+            <div class="px-3 pt-3 pb-1 flex items-center justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <span>Conversations</span>
+                <span id="session-count" class="bg-gray-700 text-gray-300 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+            </div>
+
+            <!-- Sessions List -->
+            <div id="session-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Session items rendered dynamically via JavaScript -->
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-gray-700 flex items-center justify-between text-xs text-gray-400 bg-gray-800/80">
+                <span class="flex items-center gap-1.5" title="Globally synced via Durable Object: Up to 20 sessions and 500 chats per session">
+                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                    Durable Object (20 Max)
+                </span>
+                <button 
+                    id="clear-all-btn" 
+                    title="Clear all chat sessions" 
+                    class="text-gray-400 hover:text-red-400 transition-colors p-1 rounded cursor-pointer"
+                >
+                    Clear All
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Chat Column -->
+        <section class="flex-1 flex flex-col h-full overflow-hidden bg-gray-900">
+            
+            <!-- Chat Messages Box -->
+            <main id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl w-full mx-auto">
+                <!-- Messages rendered dynamically -->
+            </main>
+
+            <!-- Sticky Input Footer -->
+            <footer class="bg-gray-800 border-t border-gray-700 p-4">
+                <form id="chat-form" class="max-w-4xl w-full mx-auto flex gap-3">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Type your message here..." 
+                        class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-3 border border-gray-600 focus:outline-none focus:border-orange-500 text-sm placeholder-gray-400"
+                        required
+                        autocomplete="off"
+                    >
+                    <button 
+                        type="submit" 
+                        id="send-btn" 
+                        class="bg-orange-600 hover:bg-orange-500 transition-colors text-white font-medium px-6 py-3 rounded-lg text-sm shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Send
+                    </button>
+                </form>
+            </footer>
+
+        </section>
+    </div>
 
     <script>
-        // Generate or fetch unique session ID for state preservation
-        let sessionId = localStorage.getItem('chat_session_id');
-        if (!sessionId) {
-            sessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('chat_session_id', sessionId);
-        }
-
-        // REPLACE THIS WITH YOUR LIVE WORKER DEPLOYMENT URL LATER
+        // Backend Worker URL
         const WORKER_URL = window.location.origin.includes('localhost') 
             ? 'http://127.0.0.1:8787' 
-            : 'https://cloudflare-ai-assistant.rithick-s49.workers.dev'; // Assuming a Cloudflare Pages Functions proxy, or replace with explicit worker link
+            : 'https://cloudflare-ai-assistant.rithick-s49.workers.dev';
 
+        // DOM Elements
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
+        const sessionList = document.getElementById('session-list');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const activeSessionBadge = document.getElementById('active-session-badge');
+        const sessionCount = document.getElementById('session-count');
+        const clearAllBtn = document.getElementById('clear-all-btn');
 
-        function appendMessage(sender, text, isUser) {
+        // Storage Keys
+        const STORAGE_KEY_SESSIONS = 'cf_ai_sessions';
+        const STORAGE_KEY_CURRENT = 'cf_ai_current_session_id';
+
+        let sessions = [];
+        let currentSessionId = null;
+
+        function generateId() {
+            return 'sess_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function escapeHtml(string) {
+            if (!string) return '';
+            const div = document.createElement('div');
+            div.innerText = string;
+            return div.innerHTML;
+        }
+
+        async function initSessions() {
+            // Load local cache immediately for instantaneous rendering
+            const rawSessions = localStorage.getItem(STORAGE_KEY_SESSIONS);
+            if (rawSessions) {
+                try {
+                    sessions = JSON.parse(rawSessions);
+                } catch (e) {
+                    sessions = [];
+                }
+            }
+
+            const legacySessionId = localStorage.getItem('chat_session_id');
+            if (!sessions || sessions.length === 0) {
+                const initialId = legacySessionId || generateId();
+                sessions = [{
+                    id: initialId,
+                    title: 'New Chat',
+                    createdAt: Date.now(),
+                    messages: [
+                        { sender: 'System', text: 'Hello! How can I help you today?', isUser: false }
+                    ]
+                }];
+                currentSessionId = initialId;
+                saveSessions();
+            } else {
+                currentSessionId = localStorage.getItem(STORAGE_KEY_CURRENT);
+                if (!currentSessionId || !sessions.find(s => s.id === currentSessionId)) {
+                    currentSessionId = sessions[0].id;
+                }
+            }
+
+            renderSessionList();
+            renderCurrentChat();
+
+            // Asynchronously fetch all sessions from the global Durable Object backend
+            await syncWithDurableObject();
+        }
+
+        async function syncWithDurableObject() {
+            try {
+                const res = await fetch(`${WORKER_URL}/api/sessions`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                if (data.sessions && Array.isArray(data.sessions)) {
+                    if (data.sessions.length > 0) {
+                        // Merge backend sessions with existing messages cache
+                        const mergedSessions = data.sessions.map((remoteSession) => {
+                            const local = sessions.find((s) => s.id === remoteSession.id);
+                            return {
+                                id: remoteSession.id,
+                                title: remoteSession.title || 'New Chat',
+                                createdAt: remoteSession.createdAt || Date.now(),
+                                messages: local && local.messages ? local.messages : []
+                            };
+                        });
+
+                        sessions = mergedSessions;
+                        if (!sessions.find((s) => s.id === currentSessionId)) {
+                            currentSessionId = sessions[0].id;
+                        }
+                        saveSessions();
+                        renderSessionList();
+
+                        // Fetch messages for the currently selected session from DO (up to 500 messages)
+                        if (currentSessionId) {
+                            await loadSessionMessagesFromDO(currentSessionId);
+                        }
+                    } else if (currentSessionId) {
+                        // Register the current initial session to DO
+                        registerSessionToDO(currentSessionId, 'New Chat');
+                    }
+                }
+            } catch (err) {
+                console.info('Backend DO currently unreachable or offline, using local state.', err.message);
+            }
+        }
+
+        async function loadSessionMessagesFromDO(sessionId) {
+            try {
+                const res = await fetch(`${WORKER_URL}/api/sessions/${sessionId}`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                if (data.messages && Array.isArray(data.messages)) {
+                    const session = sessions.find((s) => s.id === sessionId);
+                    if (session) {
+                        session.messages = data.messages.map((m) => ({
+                            sender: m.role === 'user' ? 'You' : m.role === 'assistant' ? 'AI Assistant' : 'System',
+                            text: m.content,
+                            isUser: m.role === 'user'
+                        }));
+                        if (session.messages.length === 0) {
+                            session.messages.push({ sender: 'System', text: 'Hello! How can I help you today?', isUser: false });
+                        }
+                        saveSessions();
+                        if (currentSessionId === sessionId) {
+                            renderCurrentChat();
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not fetch messages from DO:', err.message);
+            }
+        }
+
+        async function registerSessionToDO(sessionId, title) {
+            try {
+                await fetch(`${WORKER_URL}/api/sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId: sessionId, title: title })
+                });
+            } catch (err) {
+                console.warn('Could not register session to DO:', err.message);
+            }
+        }
+
+        async function deleteSessionFromDO(sessionId) {
+            try {
+                await fetch(`${WORKER_URL}/api/sessions/${sessionId}`, {
+                    method: 'DELETE'
+                });
+            } catch (err) {
+                console.warn('Could not delete session from DO:', err.message);
+            }
+        }
+
+        function saveSessions() {
+            localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
+            if (currentSessionId) {
+                localStorage.setItem(STORAGE_KEY_CURRENT, currentSessionId);
+                localStorage.setItem('chat_session_id', currentSessionId);
+            }
+            if (sessionCount) sessionCount.innerText = sessions.length;
+        }
+
+        function getCurrentSession() {
+            return sessions.find(s => s.id === currentSessionId);
+        }
+
+        function renderSessionList() {
+            sessionList.innerHTML = '';
+            if (sessionCount) sessionCount.innerText = sessions.length;
+
+            const currentSession = getCurrentSession();
+            if (activeSessionBadge && currentSession) {
+                activeSessionBadge.innerText = currentSession.title;
+            }
+
+            sessions.forEach((session) => {
+                const isActive = session.id === currentSessionId;
+                const item = document.createElement('div');
+                item.className = `group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-colors ${
+                    isActive 
+                        ? 'bg-gray-700 text-white font-medium border-l-4 border-orange-500 pl-2' 
+                        : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
+                }`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5 overflow-hidden flex-1 mr-2">
+                        <svg class="w-4 h-4 shrink-0 ${isActive ? 'text-orange-400' : 'text-gray-400 group-hover:text-gray-300'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                        </svg>
+                        <span class="truncate" title="${escapeHtml(session.title)}">${escapeHtml(session.title)}</span>
+                    </div>
+                    <button 
+                        class="delete-btn opacity-70 md:opacity-0 md:group-hover:opacity-100 hover:text-red-400 text-gray-400 p-1 rounded transition-opacity cursor-pointer" 
+                        title="Delete chat"
+                    >
+                        <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                `;
+
+                // Select session when row is clicked
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-btn')) return;
+                    selectSession(session.id);
+                });
+
+                // Delete session button
+                const deleteBtn = item.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                });
+
+                sessionList.appendChild(item);
+            });
+        }
+
+        function renderCurrentChat() {
+            chatBox.innerHTML = '';
+            const session = getCurrentSession();
+            if (!session) return;
+
+            if (session.messages.length === 0) {
+                appendMessageDOM('System', 'Hello! How can I help you today?', false);
+            } else {
+                session.messages.forEach(msg => {
+                    appendMessageDOM(msg.sender, msg.text, msg.isUser);
+                });
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendMessageDOM(sender, text, isUser) {
             const messageDiv = document.createElement('div');
             messageDiv.className = isUser 
-                ? 'bg-orange-600/20 border border-orange-500/30 p-4 rounded-lg shadow max-w-[80%] ml-auto text-right'
+                ? 'bg-orange-600/20 border border-orange-500/30 p-4 rounded-lg shadow max-w-[80%] ml-auto text-right' 
                 : 'bg-gray-800 border border-gray-700 p-4 rounded-lg shadow max-w-[80%]';
             
             messageDiv.innerHTML = `
-                <p class="text-xs ${isUser ? 'text-orange-400' : 'text-gray-400'} font-semibold mb-1">${sender}</p>
-                <p class="text-sm whitespace-pre-line">${text}</p>
+                <p class="text-xs ${isUser ? 'text-orange-400' : 'text-gray-400'} font-semibold mb-1">${escapeHtml(sender)}</p>
+                <p class="text-sm whitespace-pre-line">${escapeHtml(text)}</p>
             `;
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
+        async function selectSession(id) {
+            if (currentSessionId === id) {
+                closeSidebarMobile();
+                return;
+            }
+            currentSessionId = id;
+            saveSessions();
+            renderSessionList();
+            renderCurrentChat();
+            closeSidebarMobile();
+            userInput.focus();
+
+            // Sync full history from Durable Object (up to 500 chats)
+            await loadSessionMessagesFromDO(id);
+        }
+
+        function createNewSession() {
+            const newId = generateId();
+            const newSession = {
+                id: newId,
+                title: 'New Chat',
+                createdAt: Date.now(),
+                messages: [
+                    { sender: 'System', text: 'Hello! How can I help you today?', isUser: false }
+                ]
+            };
+
+            // Global max 20 sessions: prune locally if needed
+            while (sessions.length >= 20) {
+                sessions.pop();
+            }
+
+            sessions.unshift(newSession);
+            currentSessionId = newId;
+            saveSessions();
+            renderSessionList();
+            renderCurrentChat();
+            closeSidebarMobile();
+            userInput.value = '';
+            userInput.focus();
+
+            // Register session in Durable Object backend
+            registerSessionToDO(newId, 'New Chat');
+        }
+
+        function deleteSession(id) {
+            deleteSessionFromDO(id);
+
+            if (sessions.length <= 1) {
+                // If only 1 session left, reset to fresh chat
+                const freshId = generateId();
+                sessions = [{
+                    id: freshId,
+                    title: 'New Chat',
+                    createdAt: Date.now(),
+                    messages: [
+                        { sender: 'System', text: 'Hello! How can I help you today?', isUser: false }
+                    ]
+                }];
+                currentSessionId = freshId;
+                registerSessionToDO(freshId, 'New Chat');
+            } else {
+                const index = sessions.findIndex(s => s.id === id);
+                sessions = sessions.filter(s => s.id !== id);
+                if (currentSessionId === id) {
+                    const nextIndex = Math.min(index, sessions.length - 1);
+                    currentSessionId = sessions[nextIndex].id;
+                }
+            }
+            saveSessions();
+            renderSessionList();
+            renderCurrentChat();
+        }
+
+        function clearAllSessions() {
+            if (!confirm('Are you sure you want to clear all chat sessions?')) return;
+            sessions.forEach(s => deleteSessionFromDO(s.id));
+            const freshId = generateId();
+            sessions = [{
+                id: freshId,
+                title: 'New Chat',
+                createdAt: Date.now(),
+                messages: [
+                    { sender: 'System', text: 'Hello! How can I help you today?', isUser: false }
+                ]
+            }];
+            currentSessionId = freshId;
+            registerSessionToDO(freshId, 'New Chat');
+            saveSessions();
+            renderSessionList();
+            renderCurrentChat();
+        }
+
+        function toggleSidebar() {
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                const isOpen = !sidebar.classList.contains('-translate-x-full');
+                if (isOpen) {
+                    closeSidebarMobile();
+                } else {
+                    openSidebarMobile();
+                }
+            } else {
+                sidebar.classList.toggle('md:hidden');
+            }
+        }
+
+        function openSidebarMobile() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebar.classList.add('translate-x-0');
+            sidebarOverlay.classList.remove('hidden');
+        }
+
+        function closeSidebarMobile() {
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+                sidebarOverlay.classList.add('hidden');
+            }
+        }
+
+        // Event Listeners
+        toggleSidebarBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebarMobile);
+        newChatBtn.addEventListener('click', createNewSession);
+        clearAllBtn.addEventListener('click', clearAllSessions);
 
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = userInput.value.trim();
             if (!text) return;
 
-            // Render User Input
-            appendMessage('You', text, true);
+            const session = getCurrentSession();
+            if (!session) return;
+
+            // Auto-rename chat from "New Chat" to user's first prompt snippet
+            if (session.title === 'New Chat') {
+                session.title = text.length > 25 ? text.substring(0, 25) + '...' : text;
+                renderSessionList();
+            }
+
+            // Record user message
+            session.messages.push({ sender: 'You', text: text, isUser: true });
+            saveSessions();
+            appendMessageDOM('You', text, true);
             userInput.value = '';
-            
-            // Disable inputs while loading
+
+            // Disable inputs while waiting for AI response
             userInput.disabled = true;
             sendBtn.disabled = true;
             sendBtn.innerText = 'Thinking...';
 
             try {
-                const response = await fetch(WORKER_URL, {
+                const response = await fetch(`${WORKER_URL}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, sessionId: sessionId })
+                    body: JSON.stringify({ message: text, sessionId: session.id })
                 });
 
                 if (!response.ok) throw new Error('Failed to fetch response from edge');
 
                 const data = await response.json();
-                appendMessage('AI Assistant', data.response, false);
+                const botReply = data.response || 'No response received.';
+                session.messages.push({ sender: 'AI Assistant', text: botReply, isUser: false });
+                saveSessions();
+
+                // Only append to DOM if the user is still viewing this session
+                if (currentSessionId === session.id) {
+                    appendMessageDOM('AI Assistant', botReply, false);
+                }
 
             } catch (error) {
-                appendMessage('Error', 'Could not reach the AI worker. Make sure your backend configuration is running.', false);
+                const errorMsg = 'Could not reach the AI worker. Make sure your backend configuration is running.';
+                session.messages.push({ sender: 'Error', text: errorMsg, isUser: false });
+                saveSessions();
+
+                if (currentSessionId === session.id) {
+                    appendMessageDOM('Error', errorMsg, false);
+                }
                 console.error(error);
             } finally {
                 userInput.disabled = false;
@@ -111,6 +565,9 @@
                 userInput.focus();
             }
         });
+
+        // Initialize state
+        initSessions();
     </script>
 </body>
 </html>
