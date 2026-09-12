@@ -1,4 +1,4 @@
-# Cloudflare AI-Powered Chat Application
+# [Cloudflare AI-Powered Chat Application](https://square-breeze-997c.rithick-s49.workers.dev/)
 
 This is a complete implementation fulfilling the application assignment requirements on the **Cloudflare Developer Platform**.
 
