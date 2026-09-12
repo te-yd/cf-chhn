@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloudflare AI Assistant</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 flex flex-col h-screen font-sans">
 
@@ -18,7 +18,7 @@
     <main id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl w-full mx-auto">
         <div class="bg-gray-800 p-4 rounded-lg shadow max-w-[80%] border border-gray-700">
             <p class="text-xs text-orange-400 font-semibold mb-1">System</p>
-            <p class="text-sm">Hello! I am your AI assistant running directly on edge infrastructure. How can I help you today?</p>
+            <p class="text-sm">Hello!</p>
         </div>
     </main>
 
@@ -54,7 +54,7 @@
         // REPLACE THIS WITH YOUR LIVE WORKER DEPLOYMENT URL LATER
         const WORKER_URL = window.location.origin.includes('localhost') 
             ? 'http://127.0.0.1:8787' 
-            : '/api/chat'; // Assuming a Cloudflare Pages Functions proxy, or replace with explicit worker link
+            : 'https://cloudflare-ai-assistant.rithick-s49.workers.dev'; // Assuming a Cloudflare Pages Functions proxy, or replace with explicit worker link
 
         const chatBox = document.getElementById('chat-box');
         const chatForm = document.getElementById('chat-form');
