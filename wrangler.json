@@ -1,0 +1,14 @@
+{
+  "name": "cloudflare-ai-assistant",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-12",
+  "ai": {
+    "binding": "AI"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CHAT_HISTORY",
+      "id": "placeholder-id"
+    }
+  ]
+}
